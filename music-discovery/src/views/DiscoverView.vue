@@ -24,17 +24,21 @@ export default {
 
 <style scoped>
 .discover-view {
+  position: absolute;
+  top: 0;
+  left: 3%;
+  width: 100%;
+  height: 100%;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   padding: 16px;
-  width: 1200px;
 }
 
 .skeleton-box {
   width: 100%;
   height: 300px;
-  background-color: #e0e0e0;
+  background-color: #181818; /* Dark gray background */
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -43,7 +47,7 @@ export default {
 .skeleton-title {
   width: 60%;
   height: 20px;
-  background-color: #c0c0c0;
+  background-color: #282828; /* Slightly lighter gray */
   margin-bottom: 8px;
   border-radius: 4px;
 }
@@ -51,14 +55,15 @@ export default {
 .skeleton-content {
   width: 100%;
   height: 150px;
-  background-color: #c0c0c0;
+  background-color: #282828; /* Slightly lighter gray */
   border-radius: 4px;
   margin-bottom: 8px;
 }
+
 .skeleton-content-2 {
   width: 100%;
   height: 10px;
-  background-color: #c0c0c0;
+  background-color: #282828; /* Slightly lighter gray */
   border-radius: 4px;
 }
 </style>

@@ -10,27 +10,27 @@
       <nav>
         <ul>
           <li>
-            <router-link to="/account">
+            <router-link to="/account" @click="closeSidebar">
               <i class="fas fa-user"></i> Account
             </router-link>
           </li>
           <li>
-            <router-link to="/home">
+            <router-link to="/home" @click="closeSidebar">
               <i class="fas fa-home"></i> Home
             </router-link>
           </li>
           <li>
-            <router-link to="/organize">
+            <router-link to="/organize" @click="closeSidebar">
               <i class="fas fa-tasks"></i> Organize
             </router-link>
           </li>
           <li>
-            <router-link to="/share">
+            <router-link to="/share" @click="closeSidebar">
               <i class="fas fa-share-alt"></i> Share
             </router-link>
           </li>
           <li>
-            <router-link to="/discover">
+            <router-link to="/discover" @click="closeSidebar">
               <i class="fas fa-search"></i> Discover
             </router-link>
           </li>
@@ -50,10 +50,26 @@ export default {
   methods: {
     toggleSidebar() {
       this.isOpen = !this.isOpen;
+      if (this.isOpen) {
+        document.addEventListener('click', this.mouseClick);
+      } else {
+        document.removeEventListener('click', this.mouseClick);
+      }
+    },
+    closeSidebar() {
+      this.isOpen = false;
+      document.removeEventListener('click', this.mouseClick);
     },
     handleEsc(event) {
       if (event.key === 'Escape' && this.isOpen) {
         this.isOpen = false;
+        document.removeEventListener('click', this.mouseClick);
+      }
+    },
+    mouseClick(event) {
+      if (!this.$el.contains(event.target) && this.isOpen) {
+        this.isOpen = false;
+        document.removeEventListener('click', this.mouseClick);
       }
     },
   },
