@@ -65,6 +65,9 @@ export default {
     closeImageEditor() {
       this.showImageEditor = false;
     },
+    getToken() {
+      this.token = "18b4cff826ae43378512ef05674216f1";
+    }
   },
 };
 </script>
