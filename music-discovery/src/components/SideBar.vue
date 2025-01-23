@@ -12,6 +12,8 @@
           <li>
             <router-link to="/account" @click="closeSidebar">
               <i class="fas fa-user"></i> Account
+              <button v-if="isAuthenticated">Logout</button>
+              <button @click="signup()" v-else>Signup/Login</button>
             </router-link>
           </li>
           <li>
@@ -45,10 +47,12 @@ export default {
   data() {
     return {
       isOpen: false,
+      isAuthenticated: false,
     };
   },
   methods: {
     toggleSidebar() {
+      localStorage.getItem('token') ? this.isAuthenticated = true : this.isAuthenticated = false;
       this.isOpen = !this.isOpen;
       if (this.isOpen) {
         document.addEventListener('click', this.mouseClick);
@@ -59,6 +63,9 @@ export default {
     closeSidebar() {
       this.isOpen = false;
       document.removeEventListener('click', this.mouseClick);
+    },
+    signup() {
+      this.$router.push('/signup');
     },
     handleEsc(event) {
       if (event.key === 'Escape' && this.isOpen) {
