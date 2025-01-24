@@ -1,147 +1,73 @@
 <template>
-  <div class="organize-view">
-    <div>
+  <div class="full-page">
+    <div class="organize-view">
       <div>
-        <div style="position: relative; display: inline-block; width: 100%">
-          <input
-            class="search-bar"
-            type="text"
-            placeholder="Search songs"
-            v-model="searchValue"
-            @keypress="search($event, searchTypes, searchValue)"
-            style="width: calc(100% - 40px)"
-          />
-          <button
-            class="filter-btn"
-            @click="toggleDropdown"
-            :style="{
-              position: `absolute`,
-              right: 0,
-              top: `0`,
-              height: `100%`,
-              width: `40px`,
-              backgroundColor: `#232323`,
-            }"
-          >
-            <img src="../assets/filter.png" alt="Filter" style="height: 100%; width: 100%" />
-          </button>
+        <div class="nav-bar">
+          <button class="nav-bar-option" :class="{ currentPage: currentPage === 'Search' }" @click="navTo('Search')">Search</button>
+          <button class="nav-bar-option" :class="{ currentPage: currentPage === 'Playlists' }" @click="navTo('Playlists')">Playlists</button>
+          <button class="nav-bar-option" :class="{ currentPage: currentPage === 'Sorted' }" @click="navTo('Sorted')">Sorted</button>
         </div>
-          <div v-if="dropdownOpen" class="dropdown-content">
-            <div class="filter-options">
-              <input type="checkbox" id="album" name="album" value="album" v-model="searchTypes" />
-              <label for="album">Album</label>
-            </div>
-            <div class="filter-options">
-              <input type="checkbox" id="artist" name="artist" value="artist" v-model="searchTypes" />
-              <label for="artist">Artist</label>
-            </div>
-            <div class="filter-options">
-              <input type="checkbox" id="track" name="track" value="track" v-model="searchTypes" />
-              <label for="track">Song</label>
-            </div>
-          </div>
-        </div>
-      <div>
-        <div class="song-listing" v-if="!searchLoaded">
-          <div v-for="n in 8" :key="n" class="skeleton-box">
-            <div class="skeleton-title"></div>
-            <div class="skeleton-content"></div>
-            <div class="skeleton-content-2"></div>
-          </div>
+        <SearchView v-if="currentPage === 'Search'"/>
+        <PlaylistsView v-if="currentPage === 'Playlists'"/>
+      </div>
+      <div class="category-listing">
+        <div v-if="!categoriesLoaded">
+          <div
+            v-for="n in 30"
+            :key="n"
+            class="skeleton-content-2"
+            :style="{ marginLeft: `${Math.random() * 20}%`, width: `${100 - Math.random() * 20}%` }"
+          ></div>
         </div>
         <div v-else>
-          <div v-for="(results, type) in searchResults" :key="type">
-            <h2 @click="toggleCollapse(type)">{{ type }}
-              <span>{{ collapsedTypes[type] ? '➤' : '▼' }}</span>
-            </h2>
-            <div v-if="!collapsedTypes[type] && type == 'artists'" class="listedArtists">
-              <div v-for="result in results.items" :key="result.id" class="search-result-artist">
-                <a class="result-title" :href=result.external_urls.spotify :style="{color:`#ffffff`}">{{ result.name }}</a>
-                  <img :src="result.images[0]?.url" :alt="result.name" :style="{width: `100%`, padding: `10px 0px 0px 0px`}" />
+          <div class="category" v-for="category in categories" :key="category.id">
+            <div class="category-header">
+              <div @click="toggleCategory(category.id)" class="category-title">
+                {{ category.name }}
+              </div>
+              <button class="remove-category-btn" @click="removeCategory(category.id)">✖</button>
+            </div>
+            <div v-if="category.open" class="tags">
+              <div v-for="tag in category.tags" :key="tag.id" class="tag">
+                {{ tag.name }}
+                <button class="remove-tag-btn" @click="removeTag(category.id, tag.id)">✖</button>
+              </div>
+              <div class="add-tag">
+                <input
+                  class="add-tag-input"
+                  v-model="category.newTag"
+                  placeholder="Add a tag"
+                  @keypress="handleKeyPress($event, category.id)"
+                />
+                <button @click="addTag(category.id)" class="add-tag-btn">✔</button>
               </div>
             </div>
-            <div v-if="!collapsedTypes[type] && type == 'albums'" class="listedAlbums">
-              <div v-for="result in results.items" :key="result.id" class="search-result-album">
-                <a class="result-title" :href=result.external_urls.spotify>{{ result.name }}</a>
-                <a class="result-artists" v-for="artist in result.artists" :key="artist.id" :href=artist.external_urls.spotify>{{ artist.name }}</a>
-                  <img :src="result.images[0].url" :alt="result.name" :style="{width: `100%`}" />
-              </div>
-            </div>
-            <div v-if="!collapsedTypes[type] && type == 'tracks'" class="listedSongs">
-              <div v-for="result in results.items" :key="result.id" class="search-result-song">
-                <img class="result-image" :src="result.album.images[0].url" :alt="result.name"/>
-                <div class="result-details">
-                  <div class="result-bb">
-                    <h4>Artists</h4>
-                    <a class="result-title" v-for="artist in result.artists" :key="artist.id" :href=artist.external_urls.spotify>{{ artist.name }}</a>
-                  </div>
-                  <div class="result-bb">
-                    <h3>Album</h3>
-                    <a class="result-title" :href=result.album.external_urls.spotify>{{ result.album.name }}</a>
-                  </div>
-                  <div class="result-bb">
-                    <h3>Track</h3>
-                    <a class="result-title" :href=result.external_urls.spotify>{{ result.name }}</a>
-                  </div>
-                </div>
-              </div>
-            </div>
+          </div>
+          <div class="add-category">
+            <input
+              class="add-category-input"
+              v-model="newCategory"
+              placeholder="Add a category"
+              @keypress="handleCategoryKeyPress($event)"
+            />
+            <button @click="addCategory" class="add-category-btn">✔</button>
           </div>
         </div>
       </div>
     </div>
-    <div class="category-listing">
-      <div v-if="!categoriesLoaded">
-        <div
-          v-for="n in 30"
-          :key="n"
-          class="skeleton-content-2"
-          :style="{ marginLeft: `${Math.random() * 20}%`, width: `${100 - Math.random() * 20}%` }"
-        ></div>
-      </div>
-      <div v-else>
-        <div class="category" v-for="category in categories" :key="category.id">
-          <div class="category-header">
-            <div @click="toggleCategory(category.id)" class="category-title">
-              {{ category.name }}
-            </div>
-            <button class="remove-category-btn" @click="removeCategory(category.id)">✖</button>
-          </div>
-          <div v-if="category.open" class="tags">
-            <div v-for="tag in category.tags" :key="tag.id" class="tag">
-              {{ tag.name }}
-              <button class="remove-tag-btn" @click="removeTag(category.id, tag.id)">✖</button>
-            </div>
-            <div class="add-tag">
-              <input
-                class="add-tag-input"
-                v-model="category.newTag"
-                placeholder="Add a tag"
-                @keypress="handleKeyPress($event, category.id)"
-              />
-              <button @click="addTag(category.id)" class="add-tag-btn">✔</button>
-            </div>
-          </div>
-        </div>
-        <div class="add-category">
-          <input
-            class="add-category-input"
-            v-model="newCategory"
-            placeholder="Add a category"
-            @keypress="handleCategoryKeyPress($event)"
-          />
-          <button @click="addCategory" class="add-category-btn">✔</button>
-        </div>
-      </div>
-    </div>
-    <div class="playlist-listing"></div>
   </div>
 </template>
 
 <script>
 const clientId = '45d6d0678f9c4d9cbce9c7e1bbb2bc8f'; // your clientId
-import filter from '../assets/filter.png'
+import SearchView from '@/components/SearchView.vue';
+import PlaylistsView from '@/components/PlaylistsView.vue';
+import filter from '../assets/filter.png';
 export default {
+  components: {
+    SearchView,
+    PlaylistsView,
+  },
   name: 'OrganizeView',
   data() {
     return {
@@ -155,7 +81,8 @@ export default {
       searchLoaded: false,
       searchResults: {},
       filter,
-      collapsedTypes: {}
+      collapsedTypes: {},
+      currentPage: 'Search',
     }
   },
   mounted() {
@@ -284,6 +211,9 @@ export default {
     },
     toggleCollapse(type) {
       this.collapsedTypes[type] = !this.collapsedTypes[type];
+    },
+    navTo(page) {
+      this.currentPage = page;
     }
   },
 }
@@ -291,14 +221,10 @@ export default {
 
 <style scoped>
 .organize-view {
-  position: absolute;
-  top: 0;
-  left: 3%;
-  width: 96%;
-  height: 100%;
+  position: relative;
   display: grid;
   grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: 1fr;
   grid-template-areas:
     'left right-top'
     'left right-bottom';
@@ -567,5 +493,36 @@ export default {
   color: #4caf50;
   cursor: pointer;
   padding: 4px 8px;
+}
+.full-page{
+  display: flex;
+  flex-direction: column;
+  top: 0;
+  left: 3%;
+  width: 96%;
+  height: 100%;
+  position: absolute;
+
+}
+.nav-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  margin-bottom: 10px;
+  background-color: #282828; /* Spotify light background */
+  color: #ffffff; /* White text */
+  border-radius: 10px;
+  border: 3px solid #282828; /* Spotify border color */
+}
+.nav-bar-option {
+  background: none;
+  border: none;
+  color: #ffffff; /* White text */
+  cursor: pointer;
+  padding: 16px 32px;
+  border-radius: 4px;
+}
+.nav-bar-option.currentPage {
+  background-color: #121212; /* Spotify green */
 }
 </style>
