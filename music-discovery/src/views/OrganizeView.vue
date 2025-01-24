@@ -26,23 +26,21 @@
             <img src="../assets/filter.png" alt="Filter" style="height: 100%; width: 100%" />
           </button>
         </div>
-        <div v-if="dropdownOpen" class="dropdown-content">
-          <input type="checkbox" id="album" name="album" value="album" v-model="searchTypes" />
-          <label for="album">Album</label>
-          <input type="checkbox" id="artist" name="artist" value="artist" v-model="searchTypes" />
-          <label for="artist">Artist</label>
-          <input type="checkbox" id="track" name="track" value="track" v-model="searchTypes" />
-          <label for="track">Song</label>
-          <input
-            type="checkbox"
-            id="playlist"
-            name="playlist"
-            value="playlist"
-            v-model="searchTypes"
-          />
-          <label for="playlist">Playlist</label>
+          <div v-if="dropdownOpen" class="dropdown-content">
+            <div class="filter-options">
+              <input type="checkbox" id="album" name="album" value="album" v-model="searchTypes" />
+              <label for="album">Album</label>
+            </div>
+            <div class="filter-options">
+              <input type="checkbox" id="artist" name="artist" value="artist" v-model="searchTypes" />
+              <label for="artist">Artist</label>
+            </div>
+            <div class="filter-options">
+              <input type="checkbox" id="track" name="track" value="track" v-model="searchTypes" />
+              <label for="track">Song</label>
+            </div>
+          </div>
         </div>
-      </div>
       <div>
         <div class="song-listing" v-if="!searchLoaded">
           <div v-for="n in 8" :key="n" class="skeleton-box">
@@ -56,34 +54,36 @@
             <h2 @click="toggleCollapse(type)">{{ type }}
               <span>{{ collapsedTypes[type] ? '➤' : '▼' }}</span>
             </h2>
-            <div v-if="!collapsedTypes[type] && type == 'artists'" class="listedItems">
-              <div v-for="result in results.items" :key="result.id" class="search-result">
-                <div class="result-title">{{ result.name }}</div>
-                <div class="result-image">
-                  <img :src="result.images[0]?.url" :alt="result.name" :style="{width: `100%`}" />
-                </div>
+            <div v-if="!collapsedTypes[type] && type == 'artists'" class="listedArtists">
+              <div v-for="result in results.items" :key="result.id" class="search-result-artist">
+                <a class="result-title" :href=result.external_urls.spotify :style="{color:`#ffffff`}">{{ result.name }}</a>
+                  <img :src="result.images[0]?.url" :alt="result.name" :style="{width: `100%`, padding: `10px 0px 0px 0px`}" />
               </div>
             </div>
-            <div v-if="!collapsedTypes[type] && type == 'albums'" class="listedItems">
-              <div v-for="result in results.items" :key="result.id" class="search-result">
-                <div class="result-title">{{ result.name }}</div>
-                <div class="result-artists" v-for="artist in result.artists" :key="artist.id">{{ artist.name }}</div>
-                <div class="result-image">
+            <div v-if="!collapsedTypes[type] && type == 'albums'" class="listedAlbums">
+              <div v-for="result in results.items" :key="result.id" class="search-result-album">
+                <a class="result-title" :href=result.external_urls.spotify>{{ result.name }}</a>
+                <a class="result-artists" v-for="artist in result.artists" :key="artist.id" :href=artist.external_urls.spotify>{{ artist.name }}</a>
                   <img :src="result.images[0].url" :alt="result.name" :style="{width: `100%`}" />
-                </div>
               </div>
             </div>
-            <div v-if="!collapsedTypes[type] && type == 'tracks'" class="listedItems">
-              <div v-for="result in results.items" :key="result.id" class="search-result">
-                <div class="result-title">{{ result.name }}</div>
-                <div class="result-image">
-                  <img :src="result.album.images[0].url" :alt="result.name" :style="{width: `100%`}" />
+            <div v-if="!collapsedTypes[type] && type == 'tracks'" class="listedSongs">
+              <div v-for="result in results.items" :key="result.id" class="search-result-song">
+                <img class="result-image" :src="result.album.images[0].url" :alt="result.name"/>
+                <div class="result-details">
+                  <div class="result-bb">
+                    <h4>Artists</h4>
+                    <a class="result-title" v-for="artist in result.artists" :key="artist.id" :href=artist.external_urls.spotify>{{ artist.name }}</a>
+                  </div>
+                  <div class="result-bb">
+                    <h3>Album</h3>
+                    <a class="result-title" :href=result.album.external_urls.spotify>{{ result.album.name }}</a>
+                  </div>
+                  <div class="result-bb">
+                    <h3>Track</h3>
+                    <a class="result-title" :href=result.external_urls.spotify>{{ result.name }}</a>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div v-if="!collapsedTypes[type] && type == 'playlists'" class="listedItems">
-              <div v-for="result in results.items" :key="result.id" class="search-result">
-                <div class="result-title">{{ result.name }}</div>
               </div>
             </div>
           </div>
@@ -139,6 +139,7 @@
 </template>
 
 <script>
+const clientId = '45d6d0678f9c4d9cbce9c7e1bbb2bc8f'; // your clientId
 import filter from '../assets/filter.png'
 export default {
   name: 'OrganizeView',
@@ -178,6 +179,48 @@ export default {
     toggleCategory(id) {
       const category = this.categories.find((category) => category.id === id)
       category.open = !category.open
+    },
+    async refreshToken() {
+      const refreshToken = localStorage.getItem('refresh_token');
+      const url = " https://accounts.spotify.com/api/token";
+      const payload = {
+        method : 'POST',
+        headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId
+      }),
+      }
+      const body = await fetch(url, payload)
+      const response = await body.json();
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
+      const token = localStorage.getItem('refresh_token');
+      console.log(token);
+
+      try {
+        const response = await fetch('http://localhost:5000/spotifyLogin',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), code : token})
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+          this.$router.push('/account');
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+
     },
     addTag(categoryId) {
       const category = this.categories.find((category) => category.id === categoryId)
@@ -266,18 +309,55 @@ export default {
 .song-listing {
   grid-area: left;
 }
+.listedSongs {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 16px;
+  padding: 8px;
+  margin-bottom: 16px;
+  height: 100%;
+}
+.listedAlbums {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  padding: 8px;
+  margin-bottom: 16px;
+  height: 100%;
+}
+.listedArtists {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  padding: 8px;
+  margin-bottom: 16px;
+  height: 100%;
+}
 .listedItems {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(1, 1fr);
   gap: 16px;
-  padding: 16px;
+  padding: 8px;
   margin-bottom: 16px;
+  height: 100%;
+}
+.result-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 0;
+}
+.result-artists {
+  font-size: 14px;
+  color: #ffffff;
+  margin-bottom: 0;
 }
 .search-bar {
   width: 100%;
   padding: 8px;
   border-radius: 4px;
   background-color: #282828; /* Spotify light background */
+  color: #ffffff; /* White text */
 }
 .category-listing {
   grid-area: right-top;
@@ -326,11 +406,66 @@ export default {
 }
 .search-result {
   width: 100%;
-  height: 300px;
+  height: fit-content;
   background-color: #181818; /* Dark gray background */
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr;
+}
+.search-result-artist {
+  width: 100%;
+  height: fit-content;
+  background-color: #181818; /* Dark gray background */
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+.search-result-album {
+  width: 100%;
+  height: fit-content;
+  background-color: #181818; /* Dark gray background */
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+.search-result-song {
+  width: 100%;
+  height: fit-content;
+  background-color: #181818; /* Dark gray background */
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: row;
+  justify-content: start;
+
+}
+.result-image {
+  margin-right: 20px;
+  width: 5%;
+}
+.result-details{
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+}
+.result-bb{
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  align-items: flex-start;
+}
+.filter-options > input {
+  margin-right: 10px;
 }
 .skeleton-box {
   width: 100%;
@@ -383,6 +518,9 @@ export default {
   background-color: #282828; /* Slightly lighter gray */
   border-radius: 4px;
   padding: 10px;
+  display:flex;
+  flex-direction: row;
+  justify-content: space-around;
 }
 
 .dropdown-content ul {

@@ -143,7 +143,7 @@ export default {
       this.profile.biography = data.biography;
       this.profile.image = data.image;
       this.profile.email = localStorage.getItem('userEmail');
-
+      this.profile.connectedAccounts = data.connectedAccounts;
 
     },
     editImage() {
