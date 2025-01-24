@@ -10,10 +10,11 @@
       <nav>
         <ul>
           <li>
-            <router-link to="/account" @click="closeSidebar">
+            <router-link v-if="isAuthenticated" to="/account" @click="closeSidebar">
               <i class="fas fa-user"></i> Account
-              <button v-if="isAuthenticated">Logout</button>
-              <button @click="signup()" v-else>Signup/Login</button>
+            </router-link>
+            <router-link v-else to="/signup" @click="signup, closeSidebar">
+              <i class="fas fa-user"></i> SignUp/Login
             </router-link>
           </li>
           <li>
@@ -52,13 +53,24 @@ export default {
   },
   methods: {
     toggleSidebar() {
-      localStorage.getItem('token') ? this.isAuthenticated = true : this.isAuthenticated = false;
+      this.checkAuthentication();
       this.isOpen = !this.isOpen;
       if (this.isOpen) {
         document.addEventListener('click', this.mouseClick);
       } else {
         document.removeEventListener('click', this.mouseClick);
       }
+    },
+    checkAuthentication() {
+      const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.split('=').map(c => c.trim());
+        acc[key] = value;
+        return acc;
+      }, {});
+      this.isAuthenticated = cookies.loggedIn === 'true';
+    },
+    created() {
+    this.checkAuthentication();
     },
     closeSidebar() {
       this.isOpen = false;

@@ -101,6 +101,9 @@ export default {
         const data = await response.json();
         if (response.ok) {
           console.log('Sign Up Successful:', data);
+          var expires = (new Date(Date.now()+ 86400*1000)).toUTCString();
+          document.cookie = "loggedIn=true; expires=" + expires + ";path=/;"
+          this.$router.push('/account');
         } else {
           console.error('Sign Up Failed:', data);
         }
@@ -128,8 +131,11 @@ export default {
         const data = await response.json();
         if (response.ok) {
           console.log('Login Successful:', data);
-          localStorage.setItem('token', data.token);
-          this.$router.push('/discover');
+          localStorage.setItem('userEmail', this.loginData.email);
+          localStorage.setItem('access_token', data.code);
+          var expires = (new Date(Date.now()+ 86400*1000)).toUTCString();
+          document.cookie = "loggedIn=true; expires=" + expires + ";path=/;"
+          this.$router.push('/account');
         } else {
           console.error('Login Failed:', data);
         }

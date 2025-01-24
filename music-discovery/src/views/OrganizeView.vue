@@ -224,8 +224,8 @@ export default {
       type = type.join('%2C')
       console.log(type)
       try {
-        const token =
-          'BQAAf55dy04RKZ8N3xuRWqKYjho9IXLFLUqHLHB-qFYth8Yfvm2CGxxYyLbPdzAwrpyhz1J9PDuKlJU13M5idV35kRAbNe_di-HNM5q5-stSYmoWbSc' // Get this from your auth system
+        const token = localStorage.getItem('access_token')
+          //'BQAAf55dy04RKZ8N3xuRWqKYjho9IXLFLUqHLHB-qFYth8Yfvm2CGxxYyLbPdzAwrpyhz1J9PDuKlJU13M5idV35kRAbNe_di-HNM5q5-stSYmoWbSc' // Get this from your auth system
         const response = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=${type}`, {
           headers: {
             Authorization: `Bearer ${token}`,
