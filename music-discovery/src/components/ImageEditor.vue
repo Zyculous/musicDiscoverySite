@@ -20,6 +20,7 @@
             <img :src="cropIcon" alt="Crop" />
           </button>
           <button class="save-button" @click="saveImage">Save Image</button>
+          <input type="file" @change="uploadImage" class="upload-button" />
         </div>
         <div class="resize-controls">
           <label>
@@ -223,6 +224,26 @@ export default {
       const img = this.$refs.image;
       this.$emit('save', img.src);
     },
+    async uploadImage(event) {
+      const file = event.target.files[0];
+      const image = this.$refs.image;
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          const response = await fetch('http://localhost:5000/uploadImage', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await response.json();
+
+          image.src = data.imageUrl; // Save the image URL in the profile
+        } catch (error) {
+          console.error('Error uploading image:', error);
+        }
+      }
+    },
     handleEsc(event) {
       if (event.key === 'Escape') {
         const img = this.$refs.image;
@@ -374,5 +395,9 @@ export default {
 .crop-button:hover,
 .save-button:hover {
   background-color: #1ED760; /* Lighter green */
+}
+
+.upload-button {
+  margin-top: 10px;
 }
 </style>

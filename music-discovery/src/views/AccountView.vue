@@ -3,8 +3,9 @@
     <div class="profile-header">
       <h1 v-if="!isEditing">{{ profile.name }}</h1>
       <input v-else v-model="profile.name" class="edit-input" />
+      <button class= "edit-profile-btn" v-if="isEditing" @click="saveProfile">Save</button>
       <button class="edit-profile-btn" @click="toggleEdit">
-        {{ isEditing ? 'Save' : 'Edit Profile' }}
+        {{ isEditing ? 'Cancel' : 'Edit Profile' }}
       </button>
     </div>
     <div class="profile-body">
@@ -19,12 +20,31 @@
           <h2>Connected Accounts</h2>
           <div v-if="profile.connectedAccounts.length === 0">
             <p :style="{marginBottom: `10px`}">No connected accounts</p>
-            <button class="add-link-btn" @click="loginWithSpotifyClick">Add Account</button>
+            <div class="login-w-div">
+              <img class="account-logo" src="../assets/spotify-logo.png"/>
+              <button class="add-link-btn" @click="loginWithSpotifyClick">Add Account</button>
+            </div>
           </div>
           <ul v-else>
             <li v-for="account in profile.connectedAccounts" :key="account.id">
-              <a :href="account.link">{{ account.name }}</a>
-              <button class="remove-account-btn" @click="removeAccount(account.id)">Remove</button>
+              <div class="display-account-div">
+                <img v-if="account.name == `Spotify`" class="account-logo" src="../assets/spotify-logo.png"/>
+                <a class="account-name" :href="account.link">{{ account.name }}</a>
+                <button class="remove-account-btn" @click="removeAccount(account.id)">Remove</button>
+                <div class="account-data">
+                  <img :src="account.profileImage" alt="Profile Image" class="profile-image-small"/>
+                  <div class="account-text">
+                    <h3>Username: </h3>
+                    <p class="account-username">{{ account.username }}</p>
+                    <h3>Email: </h3>
+                    <p class="account-email">{{ account.email }}</p>
+                  </div>
+                </div>
+                <div class="account-btns">
+                  <button class="refresh-token-btn" @click="refreshToken">Refresh Token</button>
+
+                </div>
+              </div>
             </li>
           </ul>
         </div>
@@ -55,6 +75,8 @@ export default {
     return {
       profile: {
         name: "Alex Appleton",
+        username: "alexapple",
+        email: "apple@apple.com",
         connectedAccounts: [],
         biography: `Lorem ipsum odor amet, consectetuer adipiscing elit...`,
         image: defaultPFP,
@@ -82,6 +104,48 @@ export default {
     toggleEdit() {
       this.isEditing = !this.isEditing;
     },
+    async saveProfile() {
+      this.isEditing = false;
+      // Save profile changes to the server or perform any other necessary actions
+      try {
+        const response = await fetch('http://localhost:5000/saveAccount',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), connectedAccounts: this.profile.connectedAccounts, username: this.profile.username, biography: this.profile.biography, image: this.profile.image })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+          this.$router.push('/account');
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+
+    },
+    async loadProfile() {
+      const response = await fetch('http://localhost:5000/loadProfile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email : localStorage.getItem('userEmail') })
+      });
+      const data = await response.json();
+      console.log(data);
+      //this.profile.connectedAccounts = data.connectedAccounts;
+      this.profile.name = data.username;
+      this.profile.biography = data.biography;
+      this.profile.image = data.image;
+      this.profile.email = localStorage.getItem('userEmail');
+
+
+    },
     editImage() {
       if (this.isEditing) {
         this.showImageEditor = true;
@@ -104,6 +168,48 @@ export default {
       localStorage.removeItem('expires');
       localStorage.removeItem('code_verifier');
       this.$router.push('/signup');
+    },
+    async refreshToken() {
+      const refreshToken = localStorage.getItem('refresh_token');
+      const url = " https://accounts.spotify.com/api/token";
+      const payload = {
+        method : 'POST',
+        headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId
+      }),
+      }
+      const body = await fetch(url, payload)
+      const response = await body.json();
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
+      const token = localStorage.getItem('refresh_token');
+      console.log(token);
+
+      try {
+        const response = await fetch('http://localhost:5000/spotifyLogin',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), code : token})
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+          this.$router.push('/account');
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+
     },
     async loginWithSpotifyClick() {
       await this.redirectToSpotifyAuthorize();
@@ -170,11 +276,11 @@ export default {
         this.profile.connectedAccounts.push({
           id: userData.id,
           name: 'Spotify',
-          link: userData.external_urls.spotify
+          link: userData.external_urls.spotify,
+          username: userData.display_name,
+          profileImage: userData.images[0]?.url || defaultPFP,
+          email: userData.email
         });
-        this.profile.name = userData.display_name;
-        this.profile.image = userData.images.length > 0 ? userData.images[0].url : defaultPFP;
-        this.profile.biography = userData.email; // Assuming you want to display the email as biography
       }
     },
     async removeAccount(accountId) {
@@ -190,16 +296,34 @@ export default {
       const token = await this.getToken(code);
       this.currentToken.save(token);
 
+      try {
+        const response = await fetch('http://localhost:5000/spotifyLogin',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), code : token})
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+          this.$router.push('/account');
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+
       const url = new URL(window.location.href);
       url.searchParams.delete("code");
 
       const updatedUrl = url.search ? url.href : url.href.replace('?', '');
       window.history.replaceState({}, document.title, updatedUrl);
 
-    }else if(!localStorage.getItem('access_token')){
-      await this.redirectToSpotifyAuthorize();
     }
-
+    this.loadProfile();
     await this.loadSpotifyData();
   }
 };
@@ -222,14 +346,49 @@ export default {
   height: 30px;
   margin-right: 10px;
 }
+.account-name {
+  color: #1DB954; /* Spotify green */
+  text-decoration: none;
+  font-size: 20pt;
+}
+.account-data {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
 .remove-account-btn {
   background-color: #232323; /* Light gray */
-  color: #ffffff; /* White text */
+  color: #ff0000; /* White text */
   border: none;
   padding: 5px 10px;
   cursor: pointer;
   border-radius: 5px;
-  margin-left: 10px;;
+  margin-left: 85%;;
+}
+.refresh-token-btn {
+  background-color: #232323; /* Light gray */
+  color: #ffffff; /* White text */
+  border: none;
+  padding: 5px 10px;
+  position: relative;
+  justify-self: start;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.account-btns {
+  display: grid;
+  align-items: center;
+
+}
+.profile-image-small {
+  width: 50px;
+  height: 50px;
+  margin-right: 10px;
+}
+.account-text {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 10px;
 }
 .profile-footer {
   margin-top: 20px;

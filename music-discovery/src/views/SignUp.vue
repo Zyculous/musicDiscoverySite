@@ -45,6 +45,7 @@
 </template>
 
 <script>
+const clientId = '45d6d0678f9c4d9cbce9c7e1bbb2bc8f';
 export default {
   data() {
     return {
@@ -114,6 +115,48 @@ export default {
       // Handle sign up logic here
       console.log('Sign Up Data:', this.signUpData);
     },
+    async refreshToken() {
+      const refreshToken = localStorage.getItem('refresh_token');
+      const url = " https://accounts.spotify.com/api/token";
+      const payload = {
+        method : 'POST',
+        headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId
+      }),
+      }
+      const body = await fetch(url, payload)
+      const response = await body.json();
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
+      const token = localStorage.getItem('refresh_token');
+      console.log(token);
+
+      try {
+        const response = await fetch('http://localhost:5000/accountSettings',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), code : token})
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+          this.$router.push('/account');
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+
+    },
     async handleLogin() {
       // Handle login logic here
       this.validateLoginEmail();
@@ -132,9 +175,16 @@ export default {
         if (response.ok) {
           console.log('Login Successful:', data);
           localStorage.setItem('userEmail', this.loginData.email);
-          localStorage.setItem('access_token', data.code);
+          localStorage.setItem('profileImage', data.image);
           var expires = (new Date(Date.now()+ 86400*1000)).toUTCString();
           document.cookie = "loggedIn=true; expires=" + expires + ";path=/;"
+
+          if(data.code){
+
+            localStorage.setItem('refresh_token', data.code);
+            await this.refreshToken();
+          }
+
           this.$router.push('/account');
         } else {
           console.error('Login Failed:', data);

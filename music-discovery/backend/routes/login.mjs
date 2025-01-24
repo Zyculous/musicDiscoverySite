@@ -18,9 +18,10 @@ export async function login(email, password) {
     if (crypto.timingSafeEqual(document.hash.buffer, encryptHash)) {
         console.log('Login successful');
         let code = document.spotifyCode;
+        let img =  document.image? document.image : null;
         delete document._id;
 
-        return { status: 200, message: 'Login successful', data: code };
+        return { status: 200, message: 'Login successful', code: code, image: img };
     } else {
         delete document._id;
 

@@ -8,7 +8,7 @@ export async function spotifyLogin(email, code) {
       { email: email },
       { $set: { spotifyCode: code } }
     );
-
+    console.log(code);
     if (result.matchedCount === 0) {
       return { status: 404, message: 'User not found' };
     }
@@ -22,14 +22,15 @@ export async function spotifyLogin(email, code) {
 
 const router = express.Router();
 router.post('/', async (req, res) => {
-    try {
-        let result = await spotifyLogin(req.body.email, req.body.code);
-        console.log('Result:', result);
-        res.status(result.status).json({ message: result.message });
-    } catch (error) {
-        console.error('Error during login:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
+  try {
+    const { email, code } = req.body; // Destructure email and code from the request body
+    let result = await spotifyLogin(email, code);
+    console.log('Result:', result);
+    res.status(result.status).json({ message: result.message });
+  } catch (error) {
+    console.error('Error during login:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 export default router;
