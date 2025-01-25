@@ -70,7 +70,8 @@ export default {
         height: 100
       },
       startX: 0,
-      startY: 0
+      startY: 0,
+      previousFilePath: ''
     };
   },
   computed: {
@@ -195,41 +196,37 @@ export default {
       this.startX = event.clientX;
       this.startY = event.clientY;
     },
-    crop() {
+    async crop() {
       const img = this.$refs.image;
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
+      // Calculate the scaling factor
+      const scaleX = img.naturalWidth / img.width;
+      const scaleY = img.naturalHeight / img.height;
+
       // Set canvas dimensions to the size of the crop rectangle
-      canvas.width = this.cropRectangle.width;
-      canvas.height = this.cropRectangle.height;
+      canvas.width = this.cropRectangle.width * scaleX;
+      canvas.height = this.cropRectangle.height * scaleY;
 
       // Draw the cropped area onto the canvas
       ctx.drawImage(
         img,
-        this.cropRectangle.x,
-        this.cropRectangle.y,
-        this.cropRectangle.width,
-        this.cropRectangle.height,
+        this.cropRectangle.x * scaleX,
+        this.cropRectangle.y * scaleY,
+        this.cropRectangle.width * scaleX,
+        this.cropRectangle.height * scaleY,
         0,
         0,
-        this.cropRectangle.width,
-        this.cropRectangle.height
+        this.cropRectangle.width * scaleX,
+        this.cropRectangle.height * scaleY
       );
 
-      // Update the image source with the cropped image
-      img.src = canvas.toDataURL();
-    },
-    saveImage() {
-      const img = this.$refs.image;
-      this.$emit('save', img.src);
-    },
-    async uploadImage(event) {
-      const file = event.target.files[0];
-      const image = this.$refs.image;
-      if (file) {
+      // Convert the canvas to a blob
+      canvas.toBlob(async (blob) => {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', blob);
+        formData.append('previousFilePath', this.previousFilePath);
 
         try {
           const response = await fetch('http://localhost:5000/uploadImage', {
@@ -238,7 +235,57 @@ export default {
           });
           const data = await response.json();
 
-          image.src = data.imageUrl; // Save the image URL in the profile
+          // Update the image source with the server image URL
+          this.previousFilePath = data.filePath;
+          img.src = data.imageUrl;
+          //this.$emit('save', data.imageUrl);
+        } catch (error) {
+          console.error('Error uploading cropped image:', error);
+        }
+      }, 'image/jpeg');
+    },
+    async saveImage() {
+      const img = this.$refs.image;
+      const response = await fetch(img.src);
+      const blob = await response.blob();
+      const formData = new FormData();
+      formData.append('file', blob);
+      formData.append('previousFilePath', this.previousFilePath);
+
+      try {
+        const response = await fetch('http://localhost:5000/uploadImage', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+
+        // Update the image source with the server image URL
+        this.previousFilePath = data.filePath;
+        img.src = data.imageUrl;
+        this.$emit('save', data.imageUrl);
+      } catch (error) {
+        console.error('Error uploading image:', error);
+      }
+    },
+    async uploadImage(event) {
+      const file = event.target.files[0];
+      const image = this.$refs.image;
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('previousFilePath', this.previousFilePath);
+
+        try {
+          const response = await fetch('http://localhost:5000/uploadImage', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await response.json();
+
+          // Save the image URL in the profile
+          this.previousFilePath = data.filePath;
+          image.src = data.imageUrl;
+          this.$emit('save', data.imageUrl);
         } catch (error) {
           console.error('Error uploading image:', error);
         }
@@ -253,6 +300,7 @@ export default {
   },
   mounted() {
     document.addEventListener('keydown', this.handleEsc);
+    this.previousFilePath = this.imageSrc; // Initialize previousFilePath with the current imageSrc
   },
   beforeUnmount() {
     document.removeEventListener('keydown', this.handleEsc);
@@ -302,7 +350,6 @@ export default {
   max-width: 100%;
   max-height: 400px;
   margin-bottom: 20px;
-
 }
 
 .crop-rectangle {

@@ -1,8 +1,8 @@
 <template>
   <div class="profile-page">
     <div class="profile-header">
-      <h1 v-if="!isEditing">{{ profile.name }}</h1>
-      <input v-else v-model="profile.name" class="edit-input" />
+      <h1 v-if="!isEditing">{{ profile.username }}</h1>
+      <input v-else v-model="profile.username" class="edit-input" />
       <button class= "edit-profile-btn" v-if="isEditing" @click="saveProfile">Save</button>
       <button class="edit-profile-btn" @click="toggleEdit">
         {{ isEditing ? 'Cancel' : 'Edit Profile' }}
@@ -11,6 +11,19 @@
     <div class="profile-body">
       <img :src="profile.image" alt="Profile Image" class="profile-image" @click="editImage" />
       <div class="profile-content">
+        <div class="section">
+          <h2>Name</h2>
+          <div>
+            <p>{{ profile.name.firstName }}</p>
+            <input v-if="isEditing" v-model=profile.name.firstName class="edit-input" />
+            <p>{{ profile.name.lastName }}</p>
+            <input v-if="isEditing" v-model=profile.name.lastName class="edit-input" />
+          </div>
+        </div>
+        <div class="section">
+          <h2>Email</h2>
+          <p>{{ profile.email }}</p>
+        </div>
         <div class="section">
           <h2>Biography</h2>
           <p v-if="!isEditing">{{ profile.biography }}</p>
@@ -74,7 +87,10 @@ export default {
   data() {
     return {
       profile: {
-        name: "Alex Appleton",
+        name: {
+          firstName: "Alex",
+          lastName: "Apple"
+        },
         username: "alexapple",
         email: "apple@apple.com",
         connectedAccounts: [],
@@ -108,12 +124,12 @@ export default {
       this.isEditing = false;
       // Save profile changes to the server or perform any other necessary actions
       try {
-        const response = await fetch('http://localhost:5000/saveAccount',{
+        const response = await fetch('http://localhost:5000/account/saveAccount',{
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ email : localStorage.getItem('userEmail'), connectedAccounts: this.profile.connectedAccounts, username: this.profile.username, biography: this.profile.biography, image: this.profile.image })
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), connectedAccounts: this.profile.connectedAccounts, username: this.profile.username, biography: this.profile.biography, image: this.profile.image, name: this.profile.name })
         });
         const data = await response.json();
         if (response.ok) {
@@ -129,7 +145,7 @@ export default {
 
     },
     async loadProfile() {
-      const response = await fetch('http://localhost:5000/loadProfile', {
+      const response = await fetch('http://localhost:5000/account/loadProfile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -138,13 +154,18 @@ export default {
       });
       const data = await response.json();
       console.log(data);
-      //this.profile.connectedAccounts = data.connectedAccounts;
-      this.profile.name = data.username;
+      for (let i = 0; i < data.connectedAccounts.length; i++) {
+        if(!this.profile.connectedAccounts.find(account => account)){
+          this.profile.connectedAccounts.push(data.connectedAccounts[i]);
+        }
+      }
+      this.profile.connectedAccounts = data.connectedAccounts;
+      this.profile.username = data.username;
       this.profile.biography = data.biography;
       this.profile.image = data.image;
       this.profile.email = localStorage.getItem('userEmail');
       this.profile.connectedAccounts = data.connectedAccounts;
-
+      this.profile.name = data.name;
     },
     editImage() {
       if (this.isEditing) {
@@ -273,6 +294,9 @@ export default {
     async loadSpotifyData() {
       if (this.currentToken.access_token) {
         const userData = await this.getUserData();
+        if(this.profile.connectedAccounts.find(account => account.id === userData.id)){
+          return;
+        }
         this.profile.connectedAccounts.push({
           id: userData.id,
           name: 'Spotify',
@@ -282,10 +306,51 @@ export default {
           email: userData.email
         });
       }
+      console.log(this.profile.connectedAccounts);
+      try {
+        const response = await fetch('http://localhost:5000/saveConnectedAccounts',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), connectedAccounts: this.profile.connectedAccounts })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+          this.$router.push('/account');
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
     },
     async removeAccount(accountId) {
       // Remove the account from the connectedAccounts array
       this.profile.connectedAccounts = this.profile.connectedAccounts.filter(account => account.id !== accountId);
+      try {
+        const response = await fetch('http://localhost:5000/account/removeAccount',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), accountId : accountId})
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+          this.$router.push('/account');
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('access_token');
     }
   },
   async created() {
@@ -324,6 +389,7 @@ export default {
 
     }
     this.loadProfile();
+
     await this.loadSpotifyData();
   }
 };

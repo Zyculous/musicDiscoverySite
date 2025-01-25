@@ -4,7 +4,7 @@ import db from '../conn.mjs';
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  const { email, connectedAccounts, username, biography, image } = req.body;
+  const { email, connectedAccounts} = req.body;
 
   try {
     const collection = db.collection('users');
@@ -13,9 +13,6 @@ router.post('/', async (req, res) => {
       {
         $set: {
           connectedAccounts: connectedAccounts,
-          username: username,
-          biography: biography,
-          image: image
         }
       },
       { upsert: true }

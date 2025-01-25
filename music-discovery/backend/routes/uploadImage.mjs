@@ -1,5 +1,7 @@
 import express from 'express';
 import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
@@ -21,7 +23,22 @@ router.post('/', upload.single('file'), (req, res) => {
   }
 
   const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
-  res.status(200).json({ imageUrl: imageUrl });
+  const previousFilePath = req.body.previousFilePath;
+
+  // Delete the previous file if it exists
+  if (previousFilePath) {
+    const previousFileName = path.basename(previousFilePath);
+    const previousFileFullPath = path.join('uploads', previousFileName);
+    fs.unlink(previousFileFullPath, (err) => {
+      if (err) {
+        console.error('Error deleting previous file:', err);
+      } else {
+        console.log('Previous file deleted:', previousFileFullPath);
+      }
+    });
+  }
+
+  res.status(200).json({ imageUrl: imageUrl, filePath: path.join('uploads', req.file.filename) });
 });
 
 export default router;

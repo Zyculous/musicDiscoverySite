@@ -8,9 +8,10 @@ import { fileURLToPath } from "url";
 import Signup from "./routes/signup.mjs";
 import Login from "./routes/login.mjs";
 import spotifyLogin from "./routes/spotifyLogin.mjs";
-import saveAccount from "./routes/saveAccount.mjs";
-import loadProfile from "./routes/loadProfile.mjs";
 import uploadImage from "./routes/uploadImage.mjs";
+import saveConnectedAccounts from "./routes/saveConnectedAccounts.mjs";
+import accountRoutes from "./routes/account.mjs";
+
 const PORT = 5000;
 const app = express();
 
@@ -30,10 +31,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/signup", Signup);
 app.use("/login", Login);
 app.use("/spotifyLogin", spotifyLogin);
-app.use("/saveAccount", saveAccount);
-app.use("/loadProfile", loadProfile);
+app.use("/account", accountRoutes);
 app.use("/uploadImage", uploadImage);
-
+app.use("/saveConnectedAccounts", saveConnectedAccounts);
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
