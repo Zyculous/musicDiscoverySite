@@ -13,13 +13,13 @@
             <div v-for="n in 10" :key="n" class="skeleton-song"></div>
           </div>
           <div v-else>
-            <div v-for="(track, index) in playlist.tracks.items" :key="track.track.id" class="song">
+            <div v-for="(track, index) in playlist.tracks.items" :key="track.track?.id" class="song">
               <div class="track-number">{{ index + 1 }}</div>
-              <img :src="track.track.album.images[0]?.url" :alt="track.track.name" class="song-image" />
+              <img :src="track.track?.album.images[0]?.url" :alt="track.track?.name" class="song-image" />
               <div class="song-details">
-                <a :href="track.track.external_urls.spotify" class="song-title">{{ track.track.name }}</a>
+                <a :href="track.track?.external_urls.spotify" class="song-title">{{ track.track?.name }}</a>
                 <div class="song-artists">
-                  <span v-for="artist in track.track.artists" :key="artist.id" class="song-artist">
+                  <span v-for="artist in track.track?.artists" :key="artist.id" class="song-artist">
                     <a :href="artist.external_urls.spotify">{{ artist.name }}</a>
                   </span>
                 </div>
@@ -41,16 +41,32 @@ export default {
       expandedPlaylists: []
     };
   },
-  mounted() {
-    const storedPlaylists = localStorage.getItem('playlists');
-    if (storedPlaylists) {
-      this.playlists = JSON.parse(storedPlaylists);
+  async mounted() {
+    const cachedPlaylists = await this.getCachedPlaylists();
+    if (cachedPlaylists) {
+      this.playlists = cachedPlaylists;
       this.playlistsLoaded = true;
+      console.log('Loaded playlists from cache:', this.playlists);
     } else {
       this.fetchPlaylists();
     }
   },
   methods: {
+    async getCachedPlaylists() {
+      if ('caches' in window) {
+        const cache = await caches.open('music-discovery-cache-v1');
+        const response = await cache.match('https://api.spotify.com/v1/me/playlists');
+        if (response) {
+          const data = await response.json();
+          return data.items.map(playlist => ({
+            ...playlist,
+            tracksLoaded: false,
+            tracks: { items: [] }
+          }));
+        }
+      }
+      return null;
+    },
     async fetchPlaylists() {
       try {
         const token = localStorage.getItem('access_token');
@@ -60,20 +76,31 @@ export default {
           },
         });
         const data = await response.json();
-        this.playlists = data.items.map(playlist => ({
-          ...playlist,
-          tracksLoaded: false,
-          tracks: { items: [] }
-        }));
-        this.playlistsLoaded = true;
-        localStorage.setItem('playlists', JSON.stringify(this.playlists));
-        this.playlists.forEach(playlist => this.fetchPlaylistTracks(playlist.id));
+        if (data.items) {
+          this.playlists = data.items.map(playlist => ({
+            ...playlist,
+            tracksLoaded: false,
+            tracks: { items: [] }
+          }));
+          this.playlistsLoaded = true;
+
+          localStorage.setItem('playlists', JSON.stringify(this.playlists));
+          console.log('Fetched playlists from Spotify:');
+          console.log(this.playlists);
+          this.playlists.forEach(playlist => this.fetchPlaylistTracks(playlist.id));
+        } else {
+          console.error('Error fetching playlists: No items found');
+        }
       } catch (error) {
         console.error('Error fetching playlists:', error);
       }
     },
     togglePlaylist(playlistId) {
       const playlist = this.playlists.find(pl => pl.id === playlistId);
+      if (!playlist) {
+        console.error('Playlist not found:', playlistId);
+        return;
+      }
       if (this.expandedPlaylists.includes(playlistId)) {
         this.expandedPlaylists = this.expandedPlaylists.filter(id => id !== playlistId);
       } else {
@@ -82,6 +109,7 @@ export default {
           this.fetchPlaylistTracks(playlistId);
         }
       }
+      console.log('Toggled playlist:', playlistId, this.expandedPlaylists);
     },
     async fetchPlaylistTracks(playlistId) {
       try {
@@ -98,15 +126,24 @@ export default {
             },
           });
           const data = await response.json();
-          allTracks = allTracks.concat(data.items);
-          totalTracks = data.total;
-          offset += limit;
+          if (data.items) {
+            allTracks = allTracks.concat(data.items);
+            offset += limit;
+            totalTracks = data.total;
+          } else {
+            console.error('Error fetching playlist tracks: No items found');
+            break;
+          }
         } while (offset < totalTracks);
 
         const playlist = this.playlists.find(pl => pl.id === playlistId);
-        playlist.tracks = { items: allTracks };
-        playlist.tracksLoaded = true;
-        localStorage.setItem('playlists', JSON.stringify(this.playlists));
+        if (playlist) {
+          playlist.tracks.items = allTracks;
+          playlist.tracksLoaded = true;
+          console.log('Fetched tracks for playlist from Spotify:', playlistId, playlist.tracks.items);
+        } else {
+          console.error('Playlist not found when fetching tracks:', playlistId);
+        }
       } catch (error) {
         console.error('Error fetching playlist tracks:', error);
       }
