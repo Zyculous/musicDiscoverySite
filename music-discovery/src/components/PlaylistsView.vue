@@ -5,7 +5,7 @@
     <div v-else>
       <div v-for="playlist in playlists" :key="playlist.id" class="playlist">
         <h2 @click="togglePlaylist(playlist.id)">
-          <img :src="playlist.images[0]?.url" :alt="playlist.name" class="playlist-image" />
+          <img :src="playlist?.images[0]?.url" :alt="playlist.name" class="playlist-image" />
           {{ playlist.name }}
         </h2>
         <div v-if="expandedPlaylists.includes(playlist.id)" class="songs">
@@ -42,28 +42,25 @@ export default {
     };
   },
   async mounted() {
-    const cachedPlaylists = await this.getCachedPlaylists();
-    if (cachedPlaylists) {
+    const cachedPlaylists = this.getCachedPlaylists();
+    if (cachedPlaylists && cachedPlaylists.length > 0) {
       this.playlists = cachedPlaylists;
       this.playlistsLoaded = true;
-      console.log('Loaded playlists from cache:', this.playlists);
+      console.log('Loaded playlists from sessionStorage:', this.playlists);
     } else {
+      console.log('No cached playlists found or cache is empty, fetching playlists...');
       this.fetchPlaylists();
     }
   },
   methods: {
-    async getCachedPlaylists() {
-      if ('caches' in window) {
-        const cache = await caches.open('music-discovery-cache-v1');
-        const response = await cache.match('https://api.spotify.com/v1/me/playlists');
-        if (response) {
-          const data = await response.json();
-          return data.items.map(playlist => ({
-            ...playlist,
-            tracksLoaded: false,
-            tracks: { items: [] }
-          }));
+    getCachedPlaylists() {
+      try {
+        const cachedPlaylists = sessionStorage.getItem('playlists');
+        if (cachedPlaylists) {
+          return JSON.parse(cachedPlaylists);
         }
+      } catch (error) {
+        console.error('Error getting cached playlists from sessionStorage:', error);
       }
       return null;
     },
@@ -78,15 +75,16 @@ export default {
         const data = await response.json();
         if (data.items) {
           this.playlists = data.items.map(playlist => ({
-            ...playlist,
+            id: playlist.id,
+            name: playlist.name,
             tracksLoaded: false,
-            tracks: { items: [] }
+            images: playlist.images,
+            tracks: playlist.tracks,
           }));
           this.playlistsLoaded = true;
-
-          localStorage.setItem('playlists', JSON.stringify(this.playlists));
-          console.log('Fetched playlists from Spotify:');
-          console.log(this.playlists);
+          // Store the playlists in sessionStorage
+          sessionStorage.setItem('playlists', JSON.stringify(this.playlists));
+          console.log('Fetched playlists from Spotify:', this.playlists);
           this.playlists.forEach(playlist => this.fetchPlaylistTracks(playlist.id));
         } else {
           console.error('Error fetching playlists: No items found');
@@ -141,6 +139,8 @@ export default {
           playlist.tracks.items = allTracks;
           playlist.tracksLoaded = true;
           console.log('Fetched tracks for playlist from Spotify:', playlistId, playlist.tracks.items);
+          // Cache the updated playlist with tracks in sessionStorage
+          sessionStorage.setItem('playlists', JSON.stringify(this.playlists));
         } else {
           console.error('Playlist not found when fetching tracks:', playlistId);
         }
