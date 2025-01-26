@@ -3,7 +3,7 @@
     <h1>Your Playlists</h1>
     <div v-if="!playlistsLoaded" class="loading">Loading...</div>
     <div v-else>
-      <div v-for="playlist in playlists" :key="playlist.id" class="playlist">
+      <div v-for="playlist in playlists" :key="playlist.id" class="playlist" @dragover.prevent @drop="onDrop($event, playlist)">
         <h2 @click="togglePlaylist(playlist.id)">
           <img :src="playlist?.images[0]?.url" :alt="playlist.name" class="playlist-image" />
           {{ playlist.name }}
@@ -13,13 +13,13 @@
             <div v-for="n in 10" :key="n" class="skeleton-song"></div>
           </div>
           <div v-else>
-            <div v-for="(track, index) in playlist.tracks.items" :key="track.track?.id" class="song">
+            <div v-for="(track, index) in playlist.tracks.items" :key="track.track?.id" class="song" @dragover.prevent @drop="onDrop($event, track)">
               <div class="track-number">{{ index + 1 }}</div>
               <img :src="track.track?.album.images[0]?.url" :alt="track.track?.name" class="song-image" />
               <div class="song-details">
                 <a :href="track.track?.external_urls.spotify" class="song-title">{{ track.track?.name }}</a>
                 <div class="song-artists">
-                  <span v-for="artist in track.track?.artists" :key="artist.id" class="song-artist">
+                  <span v-for="artist in track.track?.artists" :key="artist.id" class="song-artist" @dragover.prevent @drop="onDrop($event, artist)">
                     <a :href="artist.external_urls.spotify">{{ artist.name }}</a>
                   </span>
                 </div>
@@ -147,6 +147,11 @@ export default {
       } catch (error) {
         console.error('Error fetching playlist tracks:', error);
       }
+    },
+    onDrop(event, target) {
+      const tag = JSON.parse(event.dataTransfer.getData('tag'));
+      console.log('Dropped tag:', tag, 'on target:', target);
+      // Handle the drop logic here, e.g., add the tag to the target
     }
   }
 };

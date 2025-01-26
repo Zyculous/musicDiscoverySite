@@ -10,50 +10,16 @@
         <SearchView v-if="currentPage === 'Search'"/>
         <PlaylistsView v-if="currentPage === 'Playlists'"/>
       </div>
-      <div class="category-listing">
-        <div v-if="!categoriesLoaded">
-          <div
-            v-for="n in 30"
-            :key="n"
-            class="skeleton-content-2"
-            :style="{ marginLeft: `${Math.random() * 20}%`, width: `${100 - Math.random() * 20}%` }"
-          ></div>
-        </div>
-        <div v-else>
-          <div class="category" v-for="category in categories" :key="category.id">
-            <div class="category-header">
-              <div @click="toggleCategory(category.id)" class="category-title">
-                {{ category.name }}
-              </div>
-              <button class="remove-category-btn" @click="removeCategory(category.id)">✖</button>
-            </div>
-            <div v-if="category.open" class="tags">
-              <div v-for="tag in category.tags" :key="tag.id" class="tag">
-                {{ tag.name }}
-                <button class="remove-tag-btn" @click="removeTag(category.id, tag.id)">✖</button>
-              </div>
-              <div class="add-tag">
-                <input
-                  class="add-tag-input"
-                  v-model="category.newTag"
-                  placeholder="Add a tag"
-                  @keypress="handleKeyPress($event, category.id)"
-                />
-                <button @click="addTag(category.id)" class="add-tag-btn">✔</button>
-              </div>
-            </div>
-          </div>
-          <div class="add-category">
-            <input
-              class="add-category-input"
-              v-model="newCategory"
-              placeholder="Add a category"
-              @keypress="handleCategoryKeyPress($event)"
-            />
-            <button @click="addCategory" class="add-category-btn">✔</button>
-          </div>
-        </div>
-      </div>
+      <CategoryListing
+        :categories="categories"
+        :categoriesLoaded="categoriesLoaded"
+        @toggle-category="toggleCategory"
+        @remove-category="removeCategory"
+        @add-tag="addTag"
+        @remove-tag="removeTag"
+        @add-category="addCategory"
+        @drag-start="onDragStart"
+      />
     </div>
   </div>
 </template>
@@ -62,11 +28,13 @@
 const clientId = '45d6d0678f9c4d9cbce9c7e1bbb2bc8f'; // your clientId
 import SearchView from '@/components/SearchView.vue';
 import PlaylistsView from '@/components/PlaylistsView.vue';
+import CategoryListing from '@/components/CategoryListing.vue';
 import filter from '../assets/filter.png';
 export default {
   components: {
     SearchView,
     PlaylistsView,
+    CategoryListing,
   },
   name: 'OrganizeView',
   data() {
@@ -106,6 +74,16 @@ export default {
     toggleCategory(id) {
       const category = this.categories.find((category) => category.id === id)
       category.open = !category.open
+    },
+    handleKeyPress(event, categoryId) {
+      if (event.key === 'Enter') {
+        this.addTag(categoryId);
+      }
+    },
+    handleCategoryKeyPress(event) {
+      if (event.key === 'Enter') {
+        this.addCategory();
+      }
     },
     async refreshToken() {
       const refreshToken = localStorage.getItem('refresh_token');
@@ -149,44 +127,8 @@ export default {
       }
 
     },
-    addTag(categoryId) {
-      const category = this.categories.find((category) => category.id === categoryId)
-      if (category.newTag.trim()) {
-        category.tags.push({ id: Date.now(), name: category.newTag })
-        category.newTag = ''
-      }
-    },
-    removeTag(categoryId, tagId) {
-      const category = this.categories.find((category) => category.id === categoryId)
-      category.tags = category.tags.filter((tag) => tag.id !== tagId)
-    },
-    handleKeyPress(event, categoryId) {
-      if (event.key === 'Enter') {
-        this.addTag(categoryId)
-      }
-    },
     toggleDropdown() {
       this.dropdownOpen = !this.dropdownOpen
-    },
-    removeCategory(categoryId) {
-      this.categories = this.categories.filter((c) => c.id !== categoryId)
-    },
-    addCategory() {
-      if (!this.newCategory.trim()) return
-      const newId = Math.max(...this.categories.map((c) => c.id), 0) + 1
-      this.categories.push({
-        id: newId,
-        name: this.newCategory,
-        tags: [],
-        open: false,
-        newTag: '',
-      })
-      this.newCategory = ''
-    },
-    handleCategoryKeyPress(event) {
-      if (event.key === 'Enter') {
-        this.addCategory()
-      }
     },
     async search(event, type, q) {
       if (event.key !== 'Enter') return
@@ -214,9 +156,47 @@ export default {
     },
     navTo(page) {
       this.currentPage = page;
-    }
+    },
+    addCategory() {
+      if (!this.newCategory.trim()) return;
+      this.$emit('add-category', this.newCategory);
+      this.newCategory = '';
+    },
+    removeCategory(categoryId) {
+      this.$emit('remove-category', categoryId);
+    },
+    addTag(categoryId) {
+      const category = this.categories.find((category) => category.id === categoryId);
+      if (category.newTag.trim()) {
+        this.$emit('add-tag', categoryId, category.newTag);
+        category.newTag = '';
+      }
+    },
+    removeTag(categoryId, tagId) {
+      this.$emit('remove-tag', { categoryId, tagId });
+    },
+    onDragStart({ event, tag }) {
+      event.dataTransfer.setData('tag', JSON.stringify(tag));
+      event.dataTransfer.effectAllowed = 'move';
+
+      // Create a custom drag image
+      const dragImage = document.createElement('div');
+      dragImage.classList.add('drag-image');
+      dragImage.textContent = tag.name;
+      document.body.appendChild(dragImage);
+
+      event.dataTransfer.setDragImage(dragImage, 0, 0);
+
+      // Remove the custom drag image after the drag ends
+      event.target.addEventListener('dragend', () => {
+        if (document.body.contains(dragImage)) {
+          document.body.removeChild(dragImage);
+        }
+      });
+
+    },
   },
-}
+};
 </script>
 
 <style scoped>
@@ -231,7 +211,27 @@ export default {
   gap: 16px;
   padding: 16px;
 }
+.drag-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: wiggle 0.3s infinite;
+}
 
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
 .song-listing {
   grid-area: left;
 }
@@ -284,42 +284,6 @@ export default {
   border-radius: 4px;
   background-color: #282828; /* Spotify light background */
   color: #ffffff; /* White text */
-}
-.category-listing {
-  grid-area: right-top;
-  width: 400px;
-  border: /* Spotify border color */ 2px solid #282828;
-  padding: 10px;
-  border-radius: 10px;
-}
-.tag {
-  margin-left: 5%;
-}
-.add-tag {
-  margin-left: 5%;
-}
-.add-tag-input {
-  padding: 5px;
-  border-radius: 4px;
-  background-color: #282828; /* Spotify light background */
-  color: #ffffff; /* White text */
-  margin-right: 8px;
-}
-.remove-tag-btn {
-  background-color: #00000000; /* Invisible color */
-  color: #ad0101;
-  border: none;
-  padding: 5px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.add-tag-btn {
-  background-color: /*invisible color*/ #28282800;
-  color: #1db954; /* White text */
-  border: none;
-  padding: 5px;
-  cursor: pointer;
-  border-radius: 4px;
 }
 .playlist-listing {
   grid-area: right-bottom;
@@ -457,42 +421,6 @@ export default {
 .dropdown-content li {
   padding: 5px 0;
   color: #ffffff; /* White text */
-}
-
-.category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.remove-category-btn {
-  background: none;
-  border: none;
-  color: #999;
-  cursor: pointer;
-  padding: 0 8px;
-}
-
-.add-category {
-  margin-top: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.add-category-input {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  flex-grow: 1;
-}
-
-.add-category-btn {
-  background: none;
-  border: none;
-  color: #4caf50;
-  cursor: pointer;
-  padding: 4px 8px;
 }
 .full-page{
   display: flex;

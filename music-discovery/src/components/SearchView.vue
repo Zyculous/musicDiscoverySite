@@ -45,23 +45,27 @@
         <h2 @click="toggleCollapse(type)">{{ type }}
           <span>{{ collapsedTypes[type] ? '➤' : '▼' }}</span>
         </h2>
-        <div v-if="!collapsedTypes[type] && type == 'artists'" class="listedArtists">
-          <div v-for="result in results.items" :key="result.id" class="search-result-artist">
+        <div v-if="!collapsedTypes[type] && type == 'artists'" class="listedArtists" >
+          <div v-for="result in results.items" :key="result.id" class="search-result-artist" @dragover.prevent @drop="onDrop($event, result)">
             <a class="result-title" :href=result.external_urls.spotify :style="{color:`#ffffff`}">{{ result.name }}</a>
             <img :src="result.images[0]?.url" :alt="result.name" :style="{width: `100%`, padding: `10px 0px 0px 0px`}" />
           </div>
         </div>
         <div v-if="!collapsedTypes[type] && type == 'albums'" class="listedAlbums">
-          <div v-for="result in results.items" :key="result.id" class="search-result-album">
+          <div v-for="result in results.items" :key="result.id" class="search-result-album" @dragover.prevent @drop="onDrop($event, result)">
             <a class="result-title" :href=result.external_urls.spotify>{{ result.name }}</a>
             <a class="result-artists" v-for="artist in result.artists" :key="artist.id" :href=artist.external_urls.spotify>{{ artist.name }}</a>
             <img :src="result.images[0].url" :alt="result.name" :style="{width: `100%`}" />
           </div>
         </div>
         <div v-if="!collapsedTypes[type] && type == 'tracks'" class="listedSongs">
-          <div v-for="result in results.items" :key="result.id" class="search-result-song">
+          <div v-for="result in results.items" :key="result.id" class="search-result-song" @dragover.prevent @drop="onDrop($event, result)">
             <img class="result-image" :src="result.album.images[0].url" :alt="result.name"/>
             <div class="result-details">
+              <div class="result-bb">
+                <h3>Track</h3>
+                <a class="result-title" :href=result.external_urls.spotify>{{ result.name }}</a>
+              </div>
               <div class="result-bb">
                 <h4>Artists</h4>
                 <div :style:="{display: `flex`, flexDirection: `row`}">
@@ -73,10 +77,6 @@
                 <h3>Album</h3>
                 <a class="result-title" :href=result.album.external_urls.spotify>{{ result.album.name }}</a>
               </div>
-              <div class="result-bb">
-                <h3>Track</h3>
-                <a class="result-title" :href=result.external_urls.spotify>{{ result.name }}</a>
-              </div>
             </div>
           </div>
         </div>
@@ -86,6 +86,8 @@
 </template>
 
 <script>
+const clientId = '45d6d0678f9c4d9cbce9c7e1bbb2bc8f'; // your clientId
+
 export default {
   data() {
     return {
@@ -115,12 +117,64 @@ export default {
         const data = await response.json();
         console.log(data);
         this.searchResults = data;
+        let error = data.error;
+        if(error.status == 401) {
+          console.log('Refreshing token...');
+          this.refreshToken();
+        }
+
       } catch (error) {
         console.error('Search error:', error);
       }
     },
     toggleDropdown() {
       this.dropdownOpen = !this.dropdownOpen;
+    },
+    async refreshToken() {
+      const refreshToken = localStorage.getItem('refresh_token');
+      const url = " https://accounts.spotify.com/api/token";
+      const payload = {
+        method : 'POST',
+        headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId
+      }),
+      }
+      const body = await fetch(url, payload)
+      const response = await body.json();
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
+      const token = localStorage.getItem('refresh_token');
+      console.log(token);
+
+      try {
+        const response = await fetch('http://localhost:5000/spotifyLogin',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), code : token})
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+
+    },
+    onDrop(event, target) {
+      const tag = JSON.parse(event.dataTransfer.getData('tag'));
+      console.log('Dropped tag:', tag, 'on target:', target);
+      // Handle the drop logic here, e.g., add the tag to the target
     }
   }
 };
