@@ -3,7 +3,7 @@
     <h1>Your Playlists</h1>
     <div v-if="!playlistsLoaded" class="loading">Loading...</div>
     <div v-else>
-      <div v-for="playlist in playlists" :key="playlist.id" class="playlist" @dragover.prevent @drop="onDrop($event, playlist)">
+      <div v-for="playlist in playlists" :key="playlist.id" class="playlist" >
         <h2 @click="togglePlaylist(playlist.id)">
           <img :src="playlist?.images[0]?.url" :alt="playlist.name" class="playlist-image" />
           {{ playlist.name }}
@@ -13,7 +13,7 @@
             <div v-for="n in 10" :key="n" class="skeleton-song"></div>
           </div>
           <div v-else>
-            <div v-for="(track, index) in playlist.tracks.items" :key="track.track?.id" class="song" @dragover.prevent @drop="onDrop($event, track)">
+            <div v-for="(track, index) in playlist.tracks.items" :id="track.track?.id" :key="track.track?.id" class="song" :data-track-id="track.track?.id" @dragover.prevent @drop="onDrop($event, track)">
               <div class="track-number">{{ index + 1 }}</div>
               <img :src="track.track?.album.images[0]?.url" :alt="track.track?.name" class="song-image" />
               <div class="song-details">
@@ -22,6 +22,11 @@
                   <span v-for="artist in track.track?.artists" :key="artist.id" class="song-artist" @dragover.prevent @drop="onDrop($event, artist)">
                     <a :href="artist.external_urls.spotify">{{ artist.name }}</a>
                   </span>
+                </div>
+              </div>
+              <div class="tags-container">
+                <div v-for="tag in track.tags" :key="tag.id" class="tag-pill" :style="{ backgroundColor: tag.color }">
+                  {{ tag.name }}
                 </div>
               </div>
             </div>
@@ -33,12 +38,15 @@
 </template>
 
 <script>
+const clientId = '45d6d0678f9c4d9cbce9c7e1bbb2bc8f'; // your clientId
+
 export default {
   data() {
     return {
       playlists: [],
       playlistsLoaded: false,
-      expandedPlaylists: []
+      expandedPlaylists: [],
+      tagColor: '#1DB954', // Default tag color
     };
   },
   async mounted() {
@@ -49,6 +57,7 @@ export default {
       console.log('Loaded playlists from sessionStorage:', this.playlists);
     } else {
       console.log('No cached playlists found or cache is empty, fetching playlists...');
+      this.refreshToken();
       this.fetchPlaylists();
     }
   },
@@ -136,7 +145,10 @@ export default {
 
         const playlist = this.playlists.find(pl => pl.id === playlistId);
         if (playlist) {
-          playlist.tracks.items = allTracks;
+          playlist.tracks.items = allTracks.map(track => ({
+            ...track,
+            tags: [] // Initialize tags array for each track
+          }));
           playlist.tracksLoaded = true;
           console.log('Fetched tracks for playlist from Spotify:', playlistId, playlist.tracks.items);
           // Cache the updated playlist with tracks in sessionStorage
@@ -151,7 +163,100 @@ export default {
     onDrop(event, target) {
       const tag = JSON.parse(event.dataTransfer.getData('tag'));
       console.log('Dropped tag:', tag, 'on target:', target);
-      // Handle the drop logic here, e.g., add the tag to the target
+
+      // Create a new tag element
+      const newTagElement = document.createElement('div');
+      newTagElement.classList.add('tag-pill');
+      newTagElement.textContent = tag.name;
+      newTagElement.style.backgroundColor = this.tagColor;
+
+      // Find the closest parent element with the .tags-container class
+      //document.getElementById(target.track.id).querySelector('.tags-container').appendChild(newTagElement);
+
+      // Find the closest parent element with the .tags-container class
+
+      let tagsContainer = document.getElementById(target.track.id).querySelector('.tags-container')
+      if (!tagsContainer) {
+        // If the target itself is not the tags container, find it within the target's children
+        tagsContainer = event.target.querySelector('.tags-container');
+      }
+
+//finish making tags drag and drop
+
+      let track = this.playlists.tracks.items.find(track => track.id === target.track.id);
+
+      console.log('Track:', track);
+      if (track) {
+        if(track.tags){
+          track.tags.push({ id: Date.now(), name: tag.name, color: this.tagColor });
+        }else{
+          track.tags = [{ id: Date.now(), name: tag.name, color: this.tagColor }];
+        }
+      }
+
+      //tags.push({ id: Date.now(), name: tag.name, color: this.tagColor });
+
+      console.log('Tags container:', tagsContainer);
+      /*if (tagsContainer) {
+        // Find the track associated with the tags container
+        const trackElement = tagsContainer.closest('.song');
+        const trackId = trackElement ? trackElement.getAttribute('data-track-id') : null;
+        if (trackId) {
+          const playlist = this.playlists.find(pl => pl.tracks.items.some(track => track.track.id === trackId));
+          const track = playlist.tracks.items.find(track => track.track.id === trackId);
+          if (track) {
+            if(track.tags){
+              track.tags.push({ id: Date.now(), name: tag.name, color: this.tagColor });
+            }else{
+              track.tags = [{ id: Date.now(), name: tag.name, color: this.tagColor }];
+            }
+          }
+        }
+      }*/
+    },
+    async refreshToken() {
+      const refreshToken = localStorage.getItem('refresh_token');
+      const url = " https://accounts.spotify.com/api/token";
+      const payload = {
+        method : 'POST',
+        headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId
+      }),
+      }
+      const body = await fetch(url, payload)
+      const response = await body.json();
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
+      const token = localStorage.getItem('refresh_token');
+      console.log(token);
+
+      try {
+        const response = await fetch('http://localhost:5000/spotifyLogin',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email : localStorage.getItem('userEmail'), code : token})
+        });
+        const data = await response.json();
+        if (response.ok) {
+          console.log('Code Storage Successful:', data);
+        } else {
+          console.error('Storage Failed:', data);
+        }
+      }
+      catch (error) {
+        console.error('Storage Failed:', error);
+      }
+
+    },
+    changeTagColor(event) {
+      this.tagColor = event.target.value;
     }
   }
 };
@@ -244,5 +349,22 @@ export default {
 .song-artist a {
   color: #1DB954; /* Spotify green */
   text-decoration: none;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-left: 10px;
+}
+
+.tag-pill {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background-color: #1DB954; /* Default tag color */
+  color: #FFFFFF; /* White text */
+  font-size: 12px;
+  cursor: pointer;
 }
 </style>

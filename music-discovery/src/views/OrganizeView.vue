@@ -157,43 +157,19 @@ export default {
     navTo(page) {
       this.currentPage = page;
     },
-    addCategory() {
-      if (!this.newCategory.trim()) return;
-      this.$emit('add-category', this.newCategory);
-      this.newCategory = '';
-    },
     removeCategory(categoryId) {
-      this.$emit('remove-category', categoryId);
+      this.categories = this.categories.filter((c) => c.id !== categoryId);
     },
-    addTag(categoryId) {
-      const category = this.categories.find((category) => category.id === categoryId);
-      if (category.newTag.trim()) {
-        this.$emit('add-tag', categoryId, category.newTag);
-        category.newTag = '';
-      }
-    },
-    removeTag(categoryId, tagId) {
-      this.$emit('remove-tag', { categoryId, tagId });
-    },
-    onDragStart({ event, tag }) {
-      event.dataTransfer.setData('tag', JSON.stringify(tag));
-      event.dataTransfer.effectAllowed = 'move';
-
-      // Create a custom drag image
-      const dragImage = document.createElement('div');
-      dragImage.classList.add('drag-image');
-      dragImage.textContent = tag.name;
-      document.body.appendChild(dragImage);
-
-      event.dataTransfer.setDragImage(dragImage, 0, 0);
-
-      // Remove the custom drag image after the drag ends
-      event.target.addEventListener('dragend', () => {
-        if (document.body.contains(dragImage)) {
-          document.body.removeChild(dragImage);
-        }
+    addCategory(newCategory) {
+      if (!newCategory.trim()) return;
+      const newId = Math.max(...this.categories.map((c) => c.id), 0) + 1;
+      this.categories.push({
+        id: newId,
+        name: newCategory,
+        tags: [],
+        open: false,
+        newTag: '',
       });
-
     },
   },
 };

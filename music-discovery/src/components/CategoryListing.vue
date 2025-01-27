@@ -35,6 +35,7 @@
               placeholder="Add a tag"
               @keypress="handleKeyPress($event, category.id)"
             />
+            <input type="color" v-model="tagColor" @input="changeTagColor" />
             <button @click="addTag(category.id)" class="add-tag-btn">✔</button>
           </div>
         </div>
@@ -61,20 +62,31 @@ export default {
   data() {
     return {
       newCategory: '',
+      tagColor: '#1DB954', // Default tag color
     };
   },
   methods: {
     toggleCategory(id) {
-      this.$emit('toggle-category', id);
+      const category = this.categories.find(cat => cat.id === id);
+      if (category) {
+        category.open = !category.open;
+      }
     },
     removeCategory(categoryId) {
       this.$emit('remove-category', categoryId);
     },
     addTag(categoryId) {
-      this.$emit('add-tag', categoryId);
+      const category = this.categories.find(cat => cat.id === categoryId);
+      if (category && category.newTag.trim()) {
+        category.tags.push({ id: Date.now(), name: category.newTag, color: this.tagColor });
+        category.newTag = '';
+      }
     },
     removeTag(categoryId, tagId) {
-      this.$emit('remove-tag', { categoryId, tagId });
+      const category = this.categories.find(cat => cat.id === categoryId);
+      if (category) {
+        category.tags = category.tags.filter(tag => tag.id !== tagId);
+      }
     },
     handleKeyPress(event, categoryId) {
       if (event.key === 'Enter') {
@@ -90,6 +102,9 @@ export default {
       if (!this.newCategory.trim()) return;
       this.$emit('add-category', this.newCategory);
       this.newCategory = '';
+    },
+    changeTagColor(event) {
+      this.tagColor = event.target.value;
     },
     onDragStart(event, tag) {
       event.dataTransfer.setData('tag', JSON.stringify(tag));
