@@ -14,8 +14,8 @@
             "name": "Launch Backend",
             "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/music-discovery/backend/server.mjs",
-            "cwd": "${workspaceFolder}/music-discovery/backend",
+            "program": "${workspaceFolder}/backend/server.mjs",
+            "cwd": "${workspaceFolder}/backend",
             "runtimeExecutable": "node",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"

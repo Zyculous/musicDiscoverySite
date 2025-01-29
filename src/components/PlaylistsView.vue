@@ -147,7 +147,8 @@ export default {
         if (playlist) {
           playlist.tracks.items = allTracks.map(track => ({
             ...track,
-            tags: [] // Initialize tags array for each track
+            tags: [],
+            parent: `${playlistId}` // Initialize tags array for each track
           }));
           playlist.tracksLoaded = true;
           console.log('Fetched tracks for playlist from Spotify:', playlistId, playlist.tracks.items);
@@ -181,9 +182,15 @@ export default {
         tagsContainer = event.target.querySelector('.tags-container');
       }
 
+
+
+
+      let playlist = this.playlists.find(pl => pl.id === target.parent);
 //finish making tags drag and drop
 
-      let track = this.playlists.tracks.items.find(track => track.id === target.track.id);
+      console.log(playlist);
+
+      let track = playlist.tracks?.items.find(track => track.id === target.track.id);
 
       console.log('Track:', track);
       if (track) {
