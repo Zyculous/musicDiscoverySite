@@ -30,4 +30,4 @@ coverage
 *.tsbuildinfo
 
 ## Uploads folder
-music-discovery/backend/uploads/
+/backend/uploads/

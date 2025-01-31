@@ -1,19 +1,15 @@
 <template>
   <div>
-    <button @click="toggleSidebar" class="hamburger-menu">
-      &#9776;
-    </button>
+    <button @click="toggleSidebar" class="hamburger-menu">&#9776;</button>
     <div :class="['sidebar', { 'sidebar--open': isOpen }]">
-      <button @click="toggleSidebar" class="close-sidebar">
-        &times;
-      </button>
+      <button @click="toggleSidebar" class="close-sidebar">&times;</button>
       <nav>
         <ul>
           <li>
             <router-link v-if="isAuthenticated" to="/account" @click="closeSidebar">
               <i class="fas fa-user"></i> Account
             </router-link>
-            <router-link v-else to="/signup" @click="signup, closeSidebar">
+            <router-link v-else to="/signup" @click="(signup, closeSidebar)">
               <i class="fas fa-user"></i> SignUp/Login
             </router-link>
           </li>
@@ -37,6 +33,11 @@
               <i class="fas fa-search"></i> Discover
             </router-link>
           </li>
+          <li>
+            <router-link to="/about" @click="closeSidebar">
+              <i class="fas fa-info-circle"></i>About
+            </router-link>
+          </li>
         </ul>
       </nav>
     </div>
@@ -49,56 +50,56 @@ export default {
     return {
       isOpen: false,
       isAuthenticated: false,
-    };
+    }
   },
   methods: {
     toggleSidebar() {
-      this.checkAuthentication();
-      this.isOpen = !this.isOpen;
+      this.checkAuthentication()
+      this.isOpen = !this.isOpen
       if (this.isOpen) {
-        document.addEventListener('click', this.mouseClick);
+        document.addEventListener('click', this.mouseClick)
       } else {
-        document.removeEventListener('click', this.mouseClick);
+        document.removeEventListener('click', this.mouseClick)
       }
     },
     checkAuthentication() {
       const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-        const [key, value] = cookie.split('=').map(c => c.trim());
-        acc[key] = value;
-        return acc;
-      }, {});
-      this.isAuthenticated = cookies.loggedIn === 'true';
+        const [key, value] = cookie.split('=').map((c) => c.trim())
+        acc[key] = value
+        return acc
+      }, {})
+      this.isAuthenticated = cookies.loggedIn === 'true'
     },
     created() {
-    this.checkAuthentication();
+      this.checkAuthentication()
     },
     closeSidebar() {
-      this.isOpen = false;
-      document.removeEventListener('click', this.mouseClick);
+      this.isOpen = false
+      document.removeEventListener('click', this.mouseClick)
     },
     signup() {
-      this.$router.push('/signup');
+      this.$router.push('/signup')
     },
     handleEsc(event) {
       if (event.key === 'Escape' && this.isOpen) {
-        this.isOpen = false;
-        document.removeEventListener('click', this.mouseClick);
+        this.isOpen = false
+        document.removeEventListener('click', this.mouseClick)
       }
     },
     mouseClick(event) {
       if (!this.$el.contains(event.target) && this.isOpen) {
-        this.isOpen = false;
-        document.removeEventListener('click', this.mouseClick);
+        this.isOpen = false
+        document.removeEventListener('click', this.mouseClick)
       }
     },
   },
   mounted() {
-    document.addEventListener('keydown', this.handleEsc);
+    document.addEventListener('keydown', this.handleEsc)
   },
   beforeUnmount() {
-    document.removeEventListener('keydown', this.handleEsc);
+    document.removeEventListener('keydown', this.handleEsc)
   },
-};
+}
 </script>
 
 <style scoped>
@@ -107,7 +108,7 @@ export default {
   cursor: pointer;
   background: none;
   border: none;
-  color: #1DB954; /* Spotify Green */
+  color: #1db954; /* Spotify Green */
   position: fixed;
   top: 20px;
   left: 20px;
@@ -142,7 +143,7 @@ export default {
 }
 
 .sidebar nav ul li a {
-  color: #1DB954; /* Spotify Green */
+  color: #1db954; /* Spotify Green */
   text-decoration: none;
   font-size: 18px;
   display: flex;
@@ -158,7 +159,7 @@ export default {
   cursor: pointer;
   background: none;
   border: none;
-  color: #1DB954; /* Spotify Green */
+  color: #1db954; /* Spotify Green */
   position: absolute;
   top: 20px;
   right: 20px;
